@@ -1,12 +1,15 @@
-# Render Deployment Configuration
-
-# This tells Render which commands to run
-buildCommand = "npm install && npm run build"
-startCommand = "node server.js"
-
-# Environment variables
-[env]
-NODE_ENV = "production"
-PORT = "10000"
-MQTT_URL = "mqtt://test.mosquitto.org:1883"
-MQTT_TOPIC_PREFIX = "motor"
+services:
+  - type: web
+    name: motor-temp-dashboard
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MQTT_URL
+        value: mqtt://test.mosquitto.org:1883
+      - key: MQTT_TOPIC_PREFIX
+        value: motor
