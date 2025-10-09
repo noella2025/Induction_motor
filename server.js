@@ -12,8 +12,13 @@ const io = new Server(server, { cors: { origin: '*' } })
 const MQTT_URL = process.env.MQTT_URL || 'mqtt://test.mosquitto.org:1883'
 const MQTT_TOPIC_PREFIX = process.env.MQTT_TOPIC_PREFIX || 'motor'
 
-// Serve Vite build (optional) - for production
-app.use(express.static(path.join(__dirname, '..', 'dist')))
+// Serve Vite build for production
+app.use(express.static(path.join(__dirname, 'dist')))
+
+// SPA fallback - serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'))
+})
 
 // Connect to MQTT broker
 const mqttClient = mqtt.connect(MQTT_URL)
