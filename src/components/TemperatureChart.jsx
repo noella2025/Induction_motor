@@ -11,7 +11,7 @@ import {
 } from 'chart.js'
 import { useEffect, useState } from 'react'
 import { Line } from 'react-chartjs-2'
-import mqtt from '../../routes/mqtt'
+import mqtt from '../mqtt'
 
 ChartJS.register(
   CategoryScale,
@@ -24,7 +24,7 @@ ChartJS.register(
   Filler
 )
 
-export default function TemperatureChart() {
+export default function TemperatureChart({ isMobile = false }) {
   const [dataPoints, setDataPoints] = useState([])
   const [labels, setLabels] = useState([])
   const [isConnected, setIsConnected] = useState(false)
@@ -233,7 +233,7 @@ export default function TemperatureChart() {
       </div>
 
       {/* Chart Container */}
-      <div style={{height: '400px', position: 'relative'}}>
+      <div style={{height: isMobile ? '300px' : '400px', position: 'relative', width: '100%'}}>
         {dataPoints.length > 0 ? (
           <Line data={chartData} options={options} />
         ) : (

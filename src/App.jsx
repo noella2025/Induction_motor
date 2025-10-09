@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Dashboard from './components/Dashboard'
-import mqtt from '../routes/mqtt'
+import mqtt from './mqtt'
 import './styles/dashboard.css'
 
 export default function App() {
@@ -16,6 +16,9 @@ export default function App() {
     fanStatus: 'off',
     lastUpdate: new Date().toLocaleTimeString()
   })
+
+  const [activeSection, setActiveSection] = useState('dashboard')
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     // Monitor MQTT connection status
@@ -88,68 +91,77 @@ export default function App() {
   }
 
   return (
-    <div className="dashboard-container">
+    <div className="app">
+      {/* Main Header - Always Visible */}
       <div className="dashboard-header">
-        <h1 className="dashboard-title">Motor Temperature Monitor</h1>
-        <p className="dashboard-subtitle">Three-Phase Induction Motor Real-Time Monitoring System</p>
+        <h1 className="dashboard-title d-none d-lg-block">Three Phase Induction Motor</h1>
+        <h2 className="dashboard-subtitle d-none d-lg-block">Temperature Monitoring System</h2>
       </div>
 
-      {/* Status Bar */}
-      <div className="status-bar">
-        <div className="status-grid">
-          <div className="status-item">
-            <div className={`status-indicator ${getStatusIndicatorClass(connectionStatus.server)}`}></div>
-            <span>Server: {connectionStatus.server.toUpperCase()}</span>
+      {/* Mobile Header with Hamburger Menu */}
+      <div className="mobile-header d-lg-none">
+        <div className="mobile-title">
+          <h1 className="app-title">Three Phase Motor Monitor</h1>
+          <span className="app-subtitle">Temperature Monitoring</span>
+        </div>
+        <button 
+          className="hamburger-btn"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle menu"
+        >
+          <span className={`hamburger-line ${menuOpen ? 'active' : ''}`}></span>
+          <span className={`hamburger-line ${menuOpen ? 'active' : ''}`}></span>
+          <span className={`hamburger-line ${menuOpen ? 'active' : ''}`}></span>
+        </button>
+      </div>
+
+      {/* Mobile Sidebar Menu */}
+      <div className={`mobile-sidebar d-lg-none ${menuOpen ? 'open' : ''}`}>
+        <div className="sidebar-overlay" onClick={() => setMenuOpen(false)}></div>
+        <div className="sidebar-content">
+          <div className="sidebar-header">
+            <h3>Menu</h3>
+            <button className="close-btn" onClick={() => setMenuOpen(false)}>×</button>
           </div>
-          <div className="status-item">
-            <div className={`status-indicator ${getStatusIndicatorClass(connectionStatus.mqtt)}`}></div>
-            <span>MQTT: {connectionStatus.mqtt.toUpperCase()}</span>
-          </div>
-          <div className="status-item">
-            <div className={`status-indicator ${getStatusIndicatorClass(connectionStatus.motor)}`}></div>
-            <span>Motor: {connectionStatus.motor.toUpperCase()}</span>
-          </div>
-          <div className="status-item">
-            <div className={`status-indicator ${getStatusIndicatorClass(realTimeData.fanStatus === 'on' ? 'running' : 'stopped')}`}></div>
-            <span>Fan: {realTimeData.fanStatus.toUpperCase()}</span>
-          </div>
+          <nav className="sidebar-nav">
+            <button 
+              className={`nav-item ${activeSection === 'dashboard' ? 'active' : ''}`}
+              onClick={() => {setActiveSection('dashboard'); setMenuOpen(false)}}
+            >
+              📊 Dashboard
+            </button>
+            <button 
+              className={`nav-item ${activeSection === 'controls' ? 'active' : ''}`}
+              onClick={() => {setActiveSection('controls'); setMenuOpen(false)}}
+            >
+              🎛️ Controls
+            </button>
+            <button 
+              className={`nav-item ${activeSection === 'settings' ? 'active' : ''}`}
+              onClick={() => {setActiveSection('settings'); setMenuOpen(false)}}
+            >
+              ⚙️ Settings
+            </button>
+            <button 
+              className={`nav-item ${activeSection === 'chart' ? 'active' : ''}`}
+              onClick={() => {setActiveSection('chart'); setMenuOpen(false)}}
+            >
+              📈 Temperature Trend
+            </button>
+          </nav>
         </div>
       </div>
 
-      {/* Real-time Data Display */}
-      <div className="dashboard-card">
-        <div className="card-header">
-          <h3 className="card-title">🔥 Real-Time Data</h3>
-          <span className="text-small">Last Update: {realTimeData.lastUpdate}</span>
-        </div>
-        <div className="realtime-data">
-          <div className="data-item">
-            <span className="data-value">{realTimeData.temperature.toFixed(1)}<span className="data-unit">°C</span></span>
-            <div className="data-label">Temperature</div>
-          </div>
-          <div className="data-item">
-            <span className="data-value" style={{color: realTimeData.motorStatus === 'running' ? 'var(--success)' : 'var(--danger)'}}>
-              {realTimeData.motorStatus === 'running' ? '●' : '○'}
-            </span>
-            <div className="data-label">Motor Status</div>
-          </div>
-          <div className="data-item">
-            <span className="data-value" style={{color: realTimeData.fanStatus === 'on' ? 'var(--info)' : 'var(--warning)'}}>
-              {realTimeData.fanStatus === 'on' ? '🌀' : '⭕'}
-            </span>
-            <div className="data-label">Fan Status</div>
-          </div>
-          <div className="data-item">
-            <span className="data-value">
-              {realTimeData.temperature >= 90 ? '🚨' : realTimeData.temperature >= 70 ? '⚠️' : '✅'}
-            </span>
-            <div className="data-label">Safety Status</div>
-          </div>
-        </div>
+      {/* Main Content with Proper Margins */}
+      <div className="dashboard-container">
+        <Dashboard 
+          realTimeData={realTimeData} 
+          setRealTimeData={setRealTimeData} 
+          activeSection={activeSection}
+          connectionStatus={connectionStatus}
+          getStatusIndicatorClass={getStatusIndicatorClass}
+        />
       </div>
-
-      {/* Main Dashboard */}
-      <Dashboard realTimeData={realTimeData} setRealTimeData={setRealTimeData} />
     </div>
   )
 }
