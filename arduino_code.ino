@@ -13,6 +13,7 @@ const char* mqtt_client_id = "motor_controller_001";
 const char* temp_topic = "motor/temp";
 const char* status_topic = "motor/status";
 const char* control_topic = "motor/control";
+const char* settings_topic = "motor/settings";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -33,6 +34,7 @@ PubSubClient client(espClient);
 #define LED_RED D8     // Critical temperature LED
 
 // ================= Temperature Settings =================
+float warningTemp = 50.0;        // Start showing warnings at 50 °C
 float fanStartTemp = 65.0;       // Turn Fan+Buzzer ON at 65 °C
 float criticalTemp = 70.0;       // Critical temperature threshold
 
@@ -41,6 +43,7 @@ const float maxRate = 10.0;      // Max allowed temp rise (°C/sec) to ignore sp
 
 // ================= State Tracking =================
 bool criticalMode = false;
+bool warningMode = false;
 bool motorState = false;
 bool fanBuzzerState = false;
 bool manualControl = false;      // Flag for manual control via dashboard
@@ -151,6 +154,32 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       }
     }
   }
+  
+  // Parse settings updates
+  if (String(topic) == settings_topic) {
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, message);
+    
+    if (doc.containsKey("action") && doc["action"] == "update_thresholds") {
+      if (doc.containsKey("warning_temp")) {
+        warningTemp = doc["warning_temp"];
+        Serial.print("🎯 Warning temp updated: ");
+        Serial.println(warningTemp);
+      }
+      if (doc.containsKey("fan_temp")) {
+        fanStartTemp = doc["fan_temp"];
+        Serial.print("🌀 Fan temp updated: ");
+        Serial.println(fanStartTemp);
+      }
+      if (doc.containsKey("critical_temp")) {
+        criticalTemp = doc["critical_temp"];
+        Serial.print("🚨 Critical temp updated: ");
+        Serial.println(criticalTemp);
+      }
+      Serial.println("✅ Temperature thresholds updated from dashboard");
+      sendStatus(); // Send updated status
+    }
+  }
 }
 
 // ================= MQTT Reconnect =================
@@ -161,6 +190,7 @@ void reconnectMQTT() {
     if (client.connect(mqtt_client_id)) {
       Serial.println("connected");
       client.subscribe(control_topic);
+      client.subscribe(settings_topic);
       
       // Send initial status
       sendStatus();
@@ -227,11 +257,23 @@ void sendStatus() {
   DynamicJsonDocument doc(1024);
   doc["motor"] = motorState;
   doc["fan"] = fanBuzzerState;
-  doc["mode"] = criticalMode ? "critical" : (smoothedTemp >= fanStartTemp ? "warning" : "normal");
+  
+  // Determine current mode based on temperature thresholds
+  String currentMode = "normal";
+  if (criticalMode) {
+    currentMode = "critical";
+  } else if (smoothedTemp >= fanStartTemp) {
+    currentMode = "cooling";
+  } else if (warningMode || smoothedTemp >= warningTemp) {
+    currentMode = "warning";
+  }
+  
+  doc["mode"] = currentMode;
   doc["manual"] = manualControl;
   doc["temp"] = smoothedTemp;
-  doc["critical_temp"] = criticalTemp;
+  doc["warning_temp"] = warningTemp;
   doc["fan_temp"] = fanStartTemp;
+  doc["critical_temp"] = criticalTemp;
   doc["uptime"] = millis();
   
   String output;
@@ -295,20 +337,24 @@ void loop() {
   if (!manualControl) {
     if (smoothedTemp >= criticalTemp) {
       criticalMode = true;
+      warningMode = false;
       motorState = false;
       fanBuzzerState = true;
       digitalWrite(LED_GREEN, LOW);
       digitalWrite(LED_RED, HIGH);
     } else {
       criticalMode = false;
+      
+      // Check if in warning mode
+      warningMode = (smoothedTemp >= warningTemp);
 
-      // Motor hysteresis: OFF above 68, ON below 65
-      if (smoothedTemp > 68.0) motorState = false;
-      else if (smoothedTemp < 65.0) motorState = true;
+      // Motor hysteresis: OFF above (critical-2), ON below (fanStart-2)
+      if (smoothedTemp > (criticalTemp - 2.0)) motorState = false;
+      else if (smoothedTemp < (fanStartTemp - 2.0)) motorState = true;
 
-      // Fan+Buzzer hysteresis: ON above 65, OFF below 63
-      if (smoothedTemp > 65.0) fanBuzzerState = true;
-      else if (smoothedTemp < 63.0) fanBuzzerState = false;
+      // Fan+Buzzer hysteresis: ON above fanStartTemp, OFF below (fanStart-2)
+      if (smoothedTemp > fanStartTemp) fanBuzzerState = true;
+      else if (smoothedTemp < (fanStartTemp - 2.0)) fanBuzzerState = false;
 
       // LEDs
       digitalWrite(LED_GREEN, HIGH);
@@ -347,12 +393,19 @@ void loop() {
   Serial.print(" °C | MODE: ");
 
   if (criticalMode) Serial.print("CRITICAL | ");
-  else if (smoothedTemp >= fanStartTemp) Serial.print("WARNING | ");
+  else if (smoothedTemp >= fanStartTemp) Serial.print("COOLING | ");
+  else if (smoothedTemp >= warningTemp) Serial.print("WARNING | ");
   else Serial.print("NORMAL | ");
 
   Serial.print("Motor: "); Serial.print(motorState ? "ON" : "OFF");
   Serial.print(" | Fan+Buzzer: "); Serial.print(fanBuzzerState ? "ON" : "OFF");
   Serial.print(" | Control: "); Serial.print(manualControl ? "MANUAL" : "AUTO");
+  Serial.print(" | Thresholds: W");
+  Serial.print(warningTemp, 0);
+  Serial.print("/F");
+  Serial.print(fanStartTemp, 0);
+  Serial.print("/C");
+  Serial.print(criticalTemp, 0);
   Serial.println();
 
   previousTemp = smoothedTemp;
