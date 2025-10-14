@@ -1,27 +1,65 @@
 # Three-Phase Induction Motor Temperature Monitoring System
 
-A real-time temperature monitoring dashboard for three-phase induction motors with automatic safety controls and MQTT integration.
+A comprehensive real-time temperature monitoring dashboard for three-phase induction motors with Arduino ESP8266 integration, automatic safety controls, and MQTT communication.
 
 ## Features
 
-- **Real-time Temperature Monitoring**: Live temperature chart with trend visualization
-- **Manual Motor Controls**: Start/stop motor manually via dashboard buttons
-- **Automatic Safety**: Motor automatically stops when maximum temperature is reached
-- **Fan Control**: Manual fan on/off control for cooling
-- **Temperature Thresholds**: 
-  - Warning temperature: Shows warning when exceeded
-  - Maximum temperature: Automatically stops motor when reached
-- **MQTT Integration**: Full MQTT broker integration for IoT connectivity
-- **Bootstrap UI**: Clean, responsive dashboard interface
+### 🌡️ **Real-time Temperature Monitoring**
+- Live temperature chart with 30-point history
+- Temperature trend visualization with Chart.js
+- Real-time temperature thresholds and alerts
+- Mobile-responsive chart display
+
+### 🔧 **Motor Control System**
+- Manual motor start/stop controls via dashboard
+- Automatic safety shutdown at critical temperature (70°C)
+- Fan control with automatic activation at 65°C
+- Emergency stop functionality
+- Hysteresis control to prevent relay chattering
+
+### 🤖 **Arduino ESP8266 Integration**
+- MAX6675 thermocouple sensor integration
+- 4-channel relay control for motor phases and fan
+- WiFi connectivity for IoT integration
+- Automatic/Manual control modes
+- LED status indicators (Green/Red)
+- Built-in safety overrides and fault detection
+
+### 📱 **Responsive Dashboard**
+- Bootstrap-based responsive UI
+- Mobile hamburger menu navigation
+- Touch-friendly controls
+- Real-time status indicators
+- Connection monitoring
+
+### 🌐 **MQTT Communication**
+- Public MQTT broker integration (test.mosquitto.org)
+- Real-time bidirectional communication
+- JSON message format for structured data
+- Automatic reconnection handling
 
 ## Architecture
 
-- **Frontend**: React + Vite + Bootstrap + Chart.js
+- **Frontend**: React 18 + Vite + Bootstrap 5 + Chart.js
 - **Backend**: Node.js + Express + Socket.IO + MQTT
-- **Communication**: Socket.IO for real-time frontend-backend communication
-- **IoT**: MQTT broker integration for external sensor/control integration
+- **Hardware**: ESP8266 NodeMCU + MAX6675 + Relays + LEDs
+- **Communication**: MQTT → Socket.IO → React (real-time pipeline)
+- **Deployment**: Render.com with automatic GitHub integration
 
-## Setup and Installation
+## Hardware Requirements
+
+### Components:
+- ESP8266 NodeMCU or similar
+- MAX6675 Thermocouple Amplifier
+- K-Type Thermocouple sensor
+- 4-Channel Relay Module
+- Green and Red LEDs
+- Buzzer (optional)
+- Resistors and jumper wires
+
+See **[ARDUINO_SETUP.md](./ARDUINO_SETUP.md)** for complete wiring diagram and setup instructions.
+
+## Software Setup
 
 ### Prerequisites
 - Node.js (v16+)
