@@ -28,7 +28,7 @@ export default function Controls({ realTimeData, setRealTimeData }) {
           if (payload.mode === 'critical') {
             setWarning('🚨 CRITICAL TEMPERATURE - Motor auto-stopped!')
           } else if (payload.mode === 'warning') {
-            setWarning('⚠️ High temperature detected - Fan activated')
+            setWarning('⚠️ High temperature detected  the motor is getting too hot!')
           } else {
             setWarning('')
           }
