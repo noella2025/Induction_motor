@@ -352,8 +352,8 @@ void loop() {
       if (smoothedTemp > (criticalTemp - 2.0)) motorState = false;
       else if (smoothedTemp < (fanStartTemp - 2.0)) motorState = true;
 
-      // Fan+Buzzer hysteresis: ON above fanStartTemp, OFF below (fanStart-2)
-      if (smoothedTemp > fanStartTemp) fanBuzzerState = true;
+  // Fan+Buzzer hysteresis: ON at or above fanStartTemp, OFF below (fanStart-2)
+  if (smoothedTemp >= fanStartTemp) fanBuzzerState = true;
       else if (smoothedTemp < (fanStartTemp - 2.0)) fanBuzzerState = false;
 
       // LEDs
