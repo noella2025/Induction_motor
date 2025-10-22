@@ -28,11 +28,7 @@ export default function Controls({ realTimeData, setRealTimeData }) {
           if (payload.mode === 'critical') {
             setWarning('🚨 CRITICAL TEMPERATURE - Motor auto-stopped!')
           } else if (payload.mode === 'warning') {
-            // Warning: thermostat reached warning setpoint, fan not necessarily on yet
-            setWarning('⚠️ Warning: temperature exceeded warning setpoint')
-          } else if (payload.mode === 'cooling' || payload.mode === 'cool') {
-            // Cooling/fan active
-            setWarning('🌀 Cooling active - Fan is ON')
+            setWarning('⚠️ High temperature detected - Fan activated')
           } else {
             setWarning('')
           }

@@ -352,8 +352,8 @@ void loop() {
       if (smoothedTemp > (criticalTemp - 2.0)) motorState = false;
       else if (smoothedTemp < (fanStartTemp - 2.0)) motorState = true;
 
-      // Fan+Buzzer hysteresis: ON above fanStartTemp, OFF below (fanStart-2)
-      if (smoothedTemp > fanStartTemp) fanBuzzerState = true;
+  // Fan+Buzzer hysteresis: ON at or above fanStartTemp, OFF below (fanStart-2)
+  if (smoothedTemp >= fanStartTemp) fanBuzzerState = true;
       else if (smoothedTemp < (fanStartTemp - 2.0)) fanBuzzerState = false;
 
       // LEDs
@@ -364,8 +364,9 @@ void loop() {
     // Apply relay states
     updateRelays();
   } else {
-    // In manual mode, still check for critical temperature override
+    // In manual mode, enforce safety overrides and still auto-activate the fan
     if (smoothedTemp >= criticalTemp) {
+      // Critical temperature always forces motor OFF and fan ON
       criticalMode = true;
       motorState = false; // Force motor OFF in critical mode
       fanBuzzerState = true; // Force fan ON in critical mode
@@ -374,7 +375,16 @@ void loop() {
       digitalWrite(LED_RED, HIGH);
       Serial.println("🚨 Critical override: Motor forced OFF, Fan forced ON");
     } else {
+      // Not critical: respect manual motor state but still auto-enable fan when needed
       criticalMode = false;
+
+      // Auto-enable fan if temperature crosses configured fanStartTemp even in manual mode
+      if (smoothedTemp >= fanStartTemp) {
+        fanBuzzerState = true;
+      }
+
+      // Do NOT override motorState here (user-controlled in manual mode)
+      updateRelays();
       digitalWrite(LED_GREEN, HIGH);
       digitalWrite(LED_RED, LOW);
     }
