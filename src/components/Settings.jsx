@@ -10,6 +10,11 @@ export default function Settings() {
   const [isConnected, setIsConnected] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [isEditing, setIsEditing] = useState(true)
+  // input string states used while editing (start empty so user types fresh)
+  const [inputWarning, setInputWarning] = useState('')
+  const [inputFan, setInputFan] = useState('')
+  const [inputCritical, setInputCritical] = useState('')
 
   // Load settings from localStorage on component mount
   useEffect(() => {
@@ -20,6 +25,8 @@ export default function Settings() {
         setWarningTemp(settings.warningTemp || 50)
         setFanTemp(settings.fanTemp || 65)
         setCriticalTemp(settings.criticalTemp || 70)
+  // If saved settings exist, start in view mode (not editing)
+  setIsEditing(false)
       } catch (e) {
         console.error('Error loading saved settings:', e)
       }
@@ -31,10 +38,14 @@ export default function Settings() {
     setIsConnected(mqtt.socket?.connected || false)
   }, [])
 
-  // Mark as having unsaved changes when any setting changes
+  // Clear input fields when editing starts (we want empty inputs so user can type)
   useEffect(() => {
-    setHasUnsavedChanges(true)
-  }, [warningTemp, fanTemp, criticalTemp])
+    if (isEditing) {
+      setInputWarning('')
+      setInputFan('')
+      setInputCritical('')
+    }
+  }, [isEditing])
 
   const validateTemperatures = () => {
     const errors = []
@@ -59,31 +70,47 @@ export default function Settings() {
   }
 
   const handleSaveSettings = () => {
+    // Parse candidate inputs; if empty use existing numeric values
+    const candidateWarning = inputWarning.trim() === '' ? warningTemp : Number(inputWarning)
+    const candidateFan = inputFan.trim() === '' ? fanTemp : Number(inputFan)
+    const candidateCritical = inputCritical.trim() === '' ? criticalTemp : Number(inputCritical)
+
+    // Temporarily set these values for validation
+    const oldWarning = warningTemp
+    const oldFan = fanTemp
+    const oldCritical = criticalTemp
+    setWarningTemp(candidateWarning)
+    setFanTemp(candidateFan)
+    setCriticalTemp(candidateCritical)
+
     const errors = validateTemperatures()
-    
     if (errors.length > 0) {
+      // revert to old values
+      setWarningTemp(oldWarning)
+      setFanTemp(oldFan)
+      setCriticalTemp(oldCritical)
       setSaveStatus(`❌ ${errors[0]}`)
       setTimeout(() => setSaveStatus(''), 4000)
       return
     }
 
     const settings = {
-      warningTemp,
-      fanTemp,
-      criticalTemp,
+      warningTemp: candidateWarning,
+      fanTemp: candidateFan,
+      criticalTemp: candidateCritical,
       timestamp: new Date().toISOString()
     }
 
     try {
       // Save to localStorage (browser storage)
       localStorage.setItem('motorSettings', JSON.stringify(settings))
-      
+
       // Send to Arduino via MQTT
       if (isConnected) {
         mqtt.sendSettings({
-          warning_temp: warningTemp,
-          fan_temp: fanTemp,
-          critical_temp: criticalTemp,
+          warning_temp: candidateWarning,
+          fan_temp: candidateFan,
+          critical_temp: candidateCritical,
           action: 'update_thresholds'
         })
       }
@@ -91,7 +118,8 @@ export default function Settings() {
       // Update status
       setSaveStatus('✅ Settings saved successfully!')
       setHasUnsavedChanges(false)
-      
+      // Disable editing until user clicks Edit
+      setIsEditing(false)
       setTimeout(() => setSaveStatus(''), 3000)
     } catch (e) {
       setSaveStatus('❌ Error saving settings')
@@ -99,19 +127,27 @@ export default function Settings() {
     }
   }
 
+  // Helper: sanitize numeric input string — remove non-digits and leading zeros
+  const sanitizeInput = (raw) => {
+    if (raw == null) return ''
+    let s = String(raw).trim()
+    if (s === '') return ''
+    // Remove any non-digit characters
+    s = s.replace(/[^0-9]/g, '')
+    // Strip leading zeros but keep single zero if user types '0'
+    s = s.replace(/^0+(?=\d)/, '')
+    return s
+  }
+
+  // While editing we capture raw input (string). Save will parse and validate numbers.
   const handleTempChange = (type, value) => {
-    const numValue = Number(value)
-    
+    setHasUnsavedChanges(true)
+    const v = sanitizeInput(value)
     switch (type) {
-      case 'warning':
-        setWarningTemp(numValue)
-        break
-      case 'fan':
-        setFanTemp(numValue)
-        break
-      case 'critical':
-        setCriticalTemp(numValue)
-        break
+      case 'warning': setInputWarning(v); break
+      case 'fan': setInputFan(v); break
+      case 'critical': setInputCritical(v); break
+      default: break
     }
   }
 
@@ -123,8 +159,8 @@ export default function Settings() {
         setCriticalTemp(75)
         break
       case 'standard':
-        setWarningTemp(50)
-        setFanTemp(65)
+  // mark as editing since presets updated values
+  setIsEditing(true)
         setCriticalTemp(70)
         break
       case 'performance':
@@ -144,8 +180,10 @@ export default function Settings() {
     setWarningTemp(50)
     setFanTemp(65)
     setCriticalTemp(70)
+    setIsEditing(true)
   }
 
+  // validationErrors will be computed for the current numeric values (used for display when not editing)
   const validationErrors = validateTemperatures()
 
   return (
@@ -196,11 +234,15 @@ export default function Settings() {
           <input 
             type="number" 
             className="form-control" 
-            value={warningTemp} 
+            value={isEditing ? inputWarning : String(warningTemp)}
+            placeholder={String(warningTemp)}
             onChange={e => handleTempChange('warning', e.target.value)}
+            onFocus={() => { if (isEditing && inputWarning === '') setInputWarning(String(warningTemp)) }}
+            onBlur={() => setInputWarning(sanitizeInput(inputWarning))}
             min="20"
             max="150"
             style={{flex: 1}}
+            disabled={!isEditing}
           />
           <span className="data-unit">°C</span>
         </div>
@@ -218,11 +260,15 @@ export default function Settings() {
           <input 
             type="number" 
             className="form-control" 
-            value={fanTemp} 
+            value={isEditing ? inputFan : String(fanTemp)}
+            placeholder={String(fanTemp)}
             onChange={e => handleTempChange('fan', e.target.value)}
+            onFocus={() => { if (isEditing && inputFan === '') setInputFan(String(fanTemp)) }}
+            onBlur={() => setInputFan(sanitizeInput(inputFan))}
             min="30"
             max="150"
             style={{flex: 1}}
+            disabled={!isEditing}
           />
           <span className="data-unit">°C</span>
         </div>
@@ -240,11 +286,15 @@ export default function Settings() {
           <input 
             type="number" 
             className="form-control" 
-            value={criticalTemp} 
+            value={isEditing ? inputCritical : String(criticalTemp)}
+            placeholder={String(criticalTemp)}
             onChange={e => handleTempChange('critical', e.target.value)}
+            onFocus={() => { if (isEditing && inputCritical === '') setInputCritical(String(criticalTemp)) }}
+            onBlur={() => setInputCritical(sanitizeInput(inputCritical))}
             min="40"
             max="200"
             style={{flex: 1}}
+            disabled={!isEditing}
           />
           <span className="data-unit">°C</span>
         </div>
@@ -253,21 +303,53 @@ export default function Settings() {
         </small>
       </div>
 
-      {/* Save Button */}
-      <div className="form-group">
+      {/* Save / Edit Buttons */}
+      <div className="form-group d-flex gap-2">
         <button 
           className={`btn-modern ${hasUnsavedChanges ? 'btn-success' : 'btn-outline-success'}`}
           onClick={handleSaveSettings}
-          disabled={validationErrors.length > 0}
+          disabled={validationErrors.length > 0 || !isEditing}
           style={{
-            width: '100%',
+            flex: 1,
             padding: '0.75rem',
             fontSize: '1rem',
             fontWeight: '600'
           }}
         >
-          💾 Save Settings
-          {hasUnsavedChanges && <span className="ms-2">•</span>}
+          💾 {isEditing ? 'Save Settings' : 'Saved'}
+          {hasUnsavedChanges && isEditing && <span className="ms-2">•</span>}
+        </button>
+
+        <button
+          className={`btn-modern ${isEditing ? 'btn-outline-secondary' : 'btn-primary'}`}
+          onClick={() => {
+            if (!isEditing) {
+              // enable editing
+              setIsEditing(true)
+              setHasUnsavedChanges(true)
+            } else {
+              // cancel edits and reload saved values
+              const saved = localStorage.getItem('motorSettings')
+              if (saved) {
+                try {
+                  const s = JSON.parse(saved)
+                  setWarningTemp(s.warningTemp || 50)
+                  setFanTemp(s.fanTemp || 65)
+                  setCriticalTemp(s.criticalTemp || 70)
+                  setHasUnsavedChanges(false)
+                } catch (e) { console.error(e) }
+              }
+              setIsEditing(false)
+            }
+          }}
+          style={{
+            padding: '0.75rem',
+            fontSize: '1rem',
+            fontWeight: '600',
+            minWidth: '120px'
+          }}
+        >
+          {isEditing ? 'Cancel' : 'Edit'}
         </button>
       </div>
 
@@ -338,42 +420,11 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Preset Buttons */}
+      {/* Manual-only mode: no presets */}
       <div className="mb-3">
         <label className="form-label">⚡ Quick Presets</label>
-        <div className="d-flex gap-2" style={{flexWrap: 'wrap'}}>
-          <button 
-            className="btn-modern btn-success"
-            onClick={() => applyPreset('conservative')}
-            style={{fontSize: '0.8rem', padding: '0.5rem 1rem'}}
-          >
-            🟢 Conservative<br/>
-            <small>45/60/75°C</small>
-          </button>
-          <button 
-            className="btn-modern btn-primary"
-            onClick={() => applyPreset('standard')}
-            style={{fontSize: '0.8rem', padding: '0.5rem 1rem'}}
-          >
-            🔵 Standard<br/>
-            <small>50/65/70°C</small>
-          </button>
-          <button 
-            className="btn-modern btn-warning"
-            onClick={() => applyPreset('performance')}
-            style={{fontSize: '0.8rem', padding: '0.5rem 1rem', color: 'var(--white)'}}
-          >
-            🟡 Performance<br/>
-            <small>55/70/80°C</small>
-          </button>
-          <button 
-            className="btn-modern btn-danger"
-            onClick={() => applyPreset('high_performance')}
-            style={{fontSize: '0.8rem', padding: '0.5rem 1rem'}}
-          >
-            🔴 High Perf<br/>
-            <small>60/75/90°C</small>
-          </button>
+        <div style={{color: 'var(--light-gray)', fontSize: '0.9rem'}}>
+          Presets have been removed — please enter your desired setpoints manually and click "Save Settings".
         </div>
       </div>
 
