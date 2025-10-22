@@ -3,8 +3,8 @@
 #include <ArduinoJson.h>
 
 // ================= WiFi & MQTT Configuration =================
-const char* ssid = "YOUR_WIFI_SSID";           // Replace with your WiFi SSID
-const char* password = "YOUR_WIFI_PASSWORD";   // Replace with your WiFi password
+const char* ssid = "Didy@26";           // Replace with your WiFi SSID
+const char* password = "didy0123";   // Replace with your WiFi password
 const char* mqtt_server = "test.mosquitto.org";
 const int mqtt_port = 1883;
 const char* mqtt_client_id = "motor_controller_001";

@@ -51,7 +51,7 @@ export default function Settings() {
     if (fanTemp < 30 || fanTemp > 150) {
       errors.push('Fan temperature must be between 30-150°C')
     }
-    if (criticalTemp < 40 || criticalTemp > 200) {
+    if (criticalTemp < 31 || criticalTemp > 200) {
       errors.push('Critical temperature must be between 40-200°C')
     }
     
